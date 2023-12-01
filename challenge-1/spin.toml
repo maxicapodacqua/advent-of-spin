@@ -20,7 +20,7 @@ component = "backend"
 
 [component.backend]
 source = "backend/target/backend.wasm"
+key_value_stores = ["default"]
 [component.backend.build]
 command = "npm run build"
 workdir = "backend"
-
