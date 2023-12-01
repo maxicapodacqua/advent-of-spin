@@ -37,10 +37,27 @@ router.get("/data", (req) => {
 });
 
 router.post("/data", (req) => {
+  if (!req.query) {
+    return {
+      status: 400,
+      headers: { "content-type": "application/json" },
+      body: "Missing wishlist key :(",
+    };
+  }
+  const key = Object.keys(req.query)[0];
+  console.log(req.params);
+  const input = req.params.value;
+  const store = Kv.openDefault();
+  console.log("key", key);
+
+  store.set(key, input);
+
   return {
-    status: 200,
+    status: 201,
     headers: { "content-type": "application/json" },
-    body: "POST call",
+    body: JSON.stringify({
+      value: input,
+    }),
   };
 });
 
