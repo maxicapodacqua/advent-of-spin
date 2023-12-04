@@ -24,3 +24,4 @@ key_value_stores = ["default"]
 [component.backend.build]
 command = "npm run build"
 workdir = "backend"
+watch = ["src/**.ts", "package.json"]

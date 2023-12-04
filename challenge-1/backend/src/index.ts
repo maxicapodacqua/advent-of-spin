@@ -3,104 +3,85 @@ import {
   HttpRequest,
   HttpResponse,
   Kv,
-  Router,
 } from "@fermyon/spin-sdk";
 
 type KvStoreType = ReturnType<(typeof Kv)["openDefault"]>;
 
-const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const router = Router();
+function getFirstQueryStringParameter(uri: string): string | null {
+  const urlObj = new URL(uri);
+  // @ts-ignore
+  const queryParams = urlObj.searchParams.keys() as Array<string>;
 
-router.get("/data", (req) => {
-  if (!req.query) {
+  if (queryParams.length == 0) {
+    return null;
+  }
+
+  return queryParams[0];
+}
+
+async function GET(
+  request: HttpRequest,
+  store: KvStoreType
+): Promise<HttpResponse> {
+  const key = getFirstQueryStringParameter(request.uri);
+
+  if (!key) {
     return {
       status: 400,
       headers: { "content-type": "application/json" },
       body: "Missing wishlist key :(",
     };
   }
-  const key = Object.keys(req.query)[0];
-  const store = Kv.openDefault();
-  console.log("key", key);
 
-  const wishlist = store.get(key);
+  const result = store.get(key);
+  let body = "";
+  if (result) {
+    body = decoder.decode(result);
+  }
 
   return {
     status: 200,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      value: wishlist,
-    }),
+    body,
   };
-});
+}
+async function POST(
+  request: HttpRequest,
+  store: KvStoreType
+): Promise<HttpResponse> {
+  const key = getFirstQueryStringParameter(request.uri);
 
-router.post("/data", (req) => {
-  if (!req.query) {
+  if (!key) {
     return {
       status: 400,
       headers: { "content-type": "application/json" },
       body: "Missing wishlist key :(",
     };
   }
-  const key = Object.keys(req.query)[0];
-  console.log(req.params);
-  const input = req.params.value;
-  const store = Kv.openDefault();
-  console.log("key", key);
 
-  store.set(key, input);
-
+  const body: { value: string } = JSON.parse(request.text());
+  store.set(key, request.text());
   return {
     status: 201,
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      value: input,
-    }),
+    body: request.text(),
   };
-});
-
-router.all("*", () => ({
-  status: 404,
-  body: encoder.encode("Not found"),
-}));
-
-// async function GET(
-//   request: HttpRequest,
-//   store: KvStoreType
-// ): Promise<HttpResponse> {
-//   // store.get()
-//   return {
-//     status: 200,
-//     headers: { "content-type": "application/json" },
-//     body: "GET call",
-//   };
-// }
-// async function POST(
-//   request: HttpRequest,
-//   store: KvStoreType
-// ): Promise<HttpResponse> {
-//   return {
-//     status: 201,
-//     headers: { "content-type": "application/json" },
-//     body: "POST call ..",
-//   };
-// }
+}
 export const handleRequest: HandleRequest = async function (
   request: HttpRequest
 ): Promise<HttpResponse> {
-  return await router.handleRequest(request);
-  // const store = Kv.openDefault();
-  // switch (request.method) {
-  //   case "GET":
-  //     return await GET(request, store);
-  //   case "POST":
-  //     return await POST(request, store);
-  // }
-  // return {
-  //   status: 405,
-  //   headers: { "content-type": "application/json" },
-  //   body: `Invalid ${request.method} method call`,
-  // };
+  const store = Kv.openDefault();
+  switch (request.method) {
+    case "GET":
+      return await GET(request, store);
+    case "POST":
+      return await POST(request, store);
+  }
+  return {
+    status: 405,
+    headers: { "content-type": "application/json" },
+    body: `Invalid ${request.method} method call`,
+  };
 };
